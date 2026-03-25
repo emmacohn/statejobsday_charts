@@ -1,0 +1,24 @@
+name: "State Jobs Day"
+output_dir: docs
+
+navbar:
+  title: "State Jobs Day"
+  left:
+    - text: "About"
+      href: index.html
+    - text: "Charts"
+      menu:
+        - text: "Nonfarm Payrolls"
+          href: nonfarm.html
+        - text: "Unemployment Rates"
+          href: urates.html
+  right:
+    - icon: fab fa-github
+      href: https://github.com/emmacohn/statejobsday_charts
+
+output:
+  html_document:
+    theme: cosmo
+    css: styles.css
+    toc: true
+

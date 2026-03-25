@@ -1,0 +1,92 @@
+---
+title: "Unemployment rate change by state"
+format: 
+  html:
+    embed-resources: true
+    code-fold: true
+---
+
+These charts show the **percentage point** change in the **unemployment rate** from the *beginning of COVID* (February, 2020) and the *start of the second Trump Administration* (January, 2025)*.* Change is calculated using the **most recent month of data available** (currently: December 2025). Blue bars represent state data, red bars provide a comparison with national data.
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(openxlsx)
+library(readxl)
+```
+
+```{r clean up, include=FALSE, echo=FALSE, warning=FALSE}
+# Percentage change in jobs, Clean and Format
+jobchange <- read_csv("/projects/ecohn/state_jobs_day/output/lf_unemployment.csv") |> 
+filter(!startsWith(series_id, "LASRD")) |> 
+select(-series_id)
+# set current month object
+current_month <- tail(colnames(jobchange), 1)
+
+# create comparison dataframe
+jobcomp <- jobchange |>
+  rename(!!current_month := !!sym(current_month)) |> 
+  mutate(feb_2020 = .data[["2020-02-01"]],
+         jan_2025 = .data[["2025-01-01"]],
+         covid_change = (.data[[current_month]] - feb_2020)*100,
+         trump_change = (.data[[current_month]] - jan_2025)*100,
+         us_covid  = covid_change[geo_name == "United States"],
+         us_trump = trump_change[geo_name == "United States"]) |> 
+  filter(geo_name != "United States") |> 
+  select(geo_name, covid_change, us_covid, trump_change, us_trump)
+
+job_long <- jobcomp |> 
+  pivot_longer(cols = c(covid_change, us_covid, trump_change, us_trump),
+               names_to = "comparison",
+               values_to = "change") |> 
+  mutate(region = if_else(startsWith(comparison, "us_"), "us", "state"))
+```
+
+```{r plots, echo=FALSE, warning=FALSE, fig.width=12, fig.height=8, results='asis'}
+states <- sort(unique(jobcomp$geo_name))
+
+# Create dropdown
+cat('<select id="stateSelector" onchange="showState(this.value)" style="padding: 10px; font-size: 16px; margin-bottom: 20px;">\n')
+for(i in seq_along(states)) {
+  cat(sprintf('  <option value="plot-%d">%s</option>\n', i, states[i]))
+}
+cat('</select>\n\n')
+
+# Create plots for each state
+for(i in seq_along(states)) {
+  state <- states[i]
+  
+  cat(sprintf('<div id="plot-%d" style="display: %s;">\n\n', 
+              i, ifelse(i == 1, "block", "none")))
+  
+  # First plot: Comparison line chart
+  plot <- job_long |> 
+    filter(geo_name == state) |>
+    ggplot(aes(x = comparison, y = change, fill = region)) +
+    geom_col() +
+    scale_fill_manual(values = c("us" = "#d73027",
+                                 "state" = "#4575b4")) +
+    labs(title = paste(state, "- Percentage point change in unemployment rate"),
+         y = "Urate percentage point change",
+        fill = NULL) +
+     theme(plot.title = element_text(size = 24),
+           axis.title = element_text(size = 20),
+           axis.text = element_text(size = 18),
+           legend.position = "none")
+  
+  print(plot)
+  
+  cat('\n\n</div>\n\n')
+}
+```
+
+```{=html}
+<script>
+function showState(plotId) {
+  var divs = document.querySelectorAll('[id^="plot-"]');
+  divs.forEach(function(div) {
+    div.style.display = 'none';
+  });
+  document.getElementById(plotId).style.display = 'block';
+}
+</script>
+```
