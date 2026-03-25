@@ -33,6 +33,7 @@ website:
       contents:
       - nonfarm.qmd
       - urates.qmd
+      - nonfarm2.qmd
     
 format:
   html:

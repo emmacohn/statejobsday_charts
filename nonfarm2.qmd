@@ -1,0 +1,130 @@
+---
+title: "Jobchange test"
+format: 
+  html:
+    embed-resources: true
+    code-fold: true
+---
+
+These charts show the change in **total nonfarm employment** from the *beginning of COVID* (February, 2020) and the *start of the second Trump Administration* (January, 2025)*.* Change is calculated using the **most recent month of data available** (currently: December 2025). Blue bars represent state data, red bars provide a comparison with national data.
+
+Edit test
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(DatawRappr)
+```
+
+```{r clean up, include=FALSE, echo=FALSE, warning=FALSE}
+# Percentage change in jobs, Clean and Format
+jobchange <- read_csv("/projects/ecohn/state_jobs_day/output/jobs_nonfarm.csv") |>
+    filter(series_id != "NA") |>
+  select(-series_id)
+
+current_month <- tail(colnames(jobchange), 1)
+
+jobcomp <- jobchange |>
+  mutate(
+    feb_2020     = .data[["2020-02-01"]],
+    jan_2025     = .data[["2025-01-01"]],
+    covid_change = ((.data[[current_month]] / feb_2020) - 1) * 100,
+    trump_change = ((.data[[current_month]] / jan_2025) - 1) * 100,
+    us_covid     = covid_change[geo_name == "United States"],
+    us_trump     = trump_change[geo_name == "United States"]
+  ) |>
+  filter(geo_name != "United States") |>
+  select(geo_name, covid_change, us_covid, trump_change, us_trump)
+
+states <- sort(unique(jobcomp$geo_name))
+
+```
+
+```{r create plots, include=FALSE, echo=FALSE, warning=FALSE}
+create_state_charts <- function(states) {
+  chart_ids <- tibble(state = character(), chart_id = character())
+
+  for (state in states) {
+    chart <- dw_create_chart(
+      title = paste(state, "- Nonfarm job change"),
+      type  = "d3-bars"        # grouped bar chart
+    )
+    chart_ids <- add_row(chart_ids, state = state, chart_id = chart$id)
+    message("Created chart for ", state, " → ", chart$id)
+  }
+
+  write_csv(chart_ids, "dw_chart_ids.csv")
+  message("Saved chart IDs to dw_chart_ids.csv")
+  chart_ids
+}
+```
+
+```{r populate plots, include=FALSE, echo=FALSE, warning=FALSE}
+populate_state_charts <- function(jobcomp, chart_ids) {
+  for (i in seq_len(nrow(chart_ids))) {
+    state    <- chart_ids$state[i]
+    chart_id <- chart_ids$chart_id[i]
+
+    # Format: one row per time period, columns = State / United States
+    row <- filter(jobcomp, geo_name == state)
+    chart_data <- tibble(
+      Period          = c("Since COVID (Feb 2020)", "Since Trump (Jan 2025)"),
+      State           = c(row$covid_change, row$trump_change),
+      `United States` = c(row$us_covid, row$us_trump)
+    )
+
+    dw_data_to_chart(chart_data, chart_id = chart_id)
+
+    dw_edit_chart(
+      chart_id,
+      title    = paste(state, "- % change in nonfarm employment"),
+      intro    = paste("Most recent data:", current_month)
+    )
+
+    message("Populated chart for ", state)
+  }
+}
+```
+
+```{r create state charts, include=FALSE, echo=FALSE, warning=FALSE}
+# Step 1: create charts (only run once — saves IDs to dw_chart_ids.csv)
+# chart_ids <- create_state_charts(states)
+```
+
+```{r populate, include=FALSE, echo=FALSE, warning=FALSE}
+# Step 2: load saved IDs and populate (run each update cycle)
+chart_ids <- read_csv("dw_chart_ids.csv")
+populate_state_charts(jobcomp, chart_ids)
+```
+
+```{r charts, echo=FALSE, warning=FALSE, results='asis'}
+# Re-order chart_ids to match alphabetical states order
+chart_ids <- chart_ids[match(states, chart_ids$state), ]
+
+# Dropdown
+cat('<select id="stateSelector" onchange="showState(this.value)" style="padding: 10px; font-size: 16px; margin-bottom: 20px;">\n')
+for (i in seq_along(states)) {
+  cat(sprintf('  <option value="plot-%d">%s</option>\n', i, states[i]))
+}
+cat('</select>\n\n')
+
+# One iframe div per state
+for (i in seq_along(states)) {
+  cat(sprintf(
+    '<div id="plot-%d" style="display: %s;">\n<iframe title="%s" aria-label="Grouped Bars" src="https://datawrapper.dwcdn.net/%s/1/" scrolling="no" frameborder="0" style="width: 100%%; border: none;" height="300"></iframe>\n</div>\n\n',
+    i,
+    ifelse(i == 1, "block", "none"),
+    states[i],
+    chart_ids$chart_id[i]
+  ))
+}
+```
+
+```{=html}
+<script>
+function showState(plotId) {
+  var divs = document.querySelectorAll('[id^="plot-"]');
+  divs.forEach(function(div) { div.style.display = 'none'; });
+  document.getElementById(plotId).style.display = 'block';
+}
+</script>
+```
