@@ -8,6 +8,6 @@ Welcome to EARN's State Jobs Day charts site!
 
 This site visualizes some of the data series from the Jobwatch workbook. Please reach out to ecohn \[at\] epi \[dot\] org if there are specific charts you'd like to see here.
 
-Sign up for the Jobwatch workbook [here](https://earn.us/member-resources/listserv-signup/) (EARN members only).
+Sign up for the Jobwatch workbook [here](https://earn.us/member-resources/listserv-signup/).
 
 Github repo [here](https://github.com/emmacohn/statejobsday_charts).
